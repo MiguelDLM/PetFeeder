@@ -79,5 +79,17 @@ bool Storage::hasConfigChanged(const String& oldSSID, const String& oldPassword)
   return (currentSSID != oldSSID || currentPassword != oldPassword);
 }
 
+
+#define INITIALIZED_ADDR 500
+#define INITIALIZED_VALUE 42
+
+bool Storage::isFirstRun() {
+  return (EEPROM.read(INITIALIZED_ADDR) != INITIALIZED_VALUE);
+}
+
+void Storage::setInitialized() {
+  EEPROM.write(INITIALIZED_ADDR, INITIALIZED_VALUE);
+  EEPROM.commit();
+}
 // Instancia global
 Storage storage;

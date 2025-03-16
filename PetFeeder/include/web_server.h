@@ -24,12 +24,13 @@ public:
   // Escanea las redes WiFi disponibles
   void scanWifiNetworks();
   
+  // Configura las rutas del servidor
+  void setupRoutes();
+  
 private:
   ESP8266WebServer server;
   DNSServer dnsServer;
   
-  // Configura las rutas del servidor
-  void setupRoutes();
   
   // Maneja la solicitud a la página principal
   void handleRoot();
@@ -42,10 +43,24 @@ private:
   
   // Maneja solicitudes no encontradas (para portal cautivo)
   void handleNotFound();
+
+  void handleConnectionSuccess();
   
   // Contenido HTML en memoria de programa
   static const char INDEX_HTML[] PROGMEM;
   static const char SUCCESS_HTML[] PROGMEM;
+  
+  // Maneja la página de horarios de alimentación
+  void handleFeedingSchedule();
+  
+  // Maneja la API para guardar horarios
+  void handleSaveSchedule();
+  
+  // Maneja la API para obtener horarios
+  void handleGetSchedules();
+  
+  // Añadir este campo privado
+  static const char SCHEDULE_HTML[] PROGMEM;
 };
 
 extern WebServerManager webServer;

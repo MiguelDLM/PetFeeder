@@ -1,5 +1,6 @@
-#include "../include/wifi_manager.h"
 #include <storage.h>
+#include <web_server.h>
+#include "wifi_manager.h"
 
 // Códigos de error para la conexión WiFi
 const char* WiFiManager::getErrorString(int error) {
@@ -66,10 +67,7 @@ int WiFiManager::connectToWiFi(const String& ssid, const String& password) {
   
   connectionAttempts++;
   Serial.printf("Connection attempt #%d of %d\n", connectionAttempts, MAX_CONNECTION_ATTEMPTS);
-  
-  // En el método connect() o en la función que maneja los intentos de conexión:
-  
-  // Después de que falle el tercer intento:
+
   // Reemplazar el bloque problemático:
   if (connectionAttempts >= MAX_CONNECTION_ATTEMPTS) {
     Serial.println("Connection marked as failed. Won't auto-retry until reset or new credentials.");
@@ -185,6 +183,23 @@ void WiFiManager::reset() {
   connectionFailed = false;
   lastConnectionError = WIFI_CONNECT_SUCCESS;
   delay(100);
+}
+
+void WiFiManager::handleConnectionSuccess() {
+  // Reset all server-related components
+  webServer.stop();
+  delay(100);
+  
+  // Ensure we're in the proper mode
+  WiFi.mode(WIFI_STA);
+  
+  // Start the web server again
+  webServer.begin();
+  webServer.setupRoutes(); // Make sure all routes are set up
+  
+  Serial.print("Connected to WiFi! IP address: ");
+  Serial.println(WiFi.localIP());
+  Serial.println("Web server restarted and ready for connections");
 }
 
 // Instancia global

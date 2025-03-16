@@ -57,7 +57,9 @@ public:
   
   // Reinicia la configuración WiFi
   void reset();
-  
+
+  void handleConnectionSuccess();
+
   // Marca la configuración WiFi como fallida (no intentar reconexión)
   void markConnectionAsFailed();
   
@@ -66,6 +68,8 @@ public:
   
   // Resetea el estado de fallo cuando hay nuevas credenciales
   void resetFailedState();
+
+  void setupRoutes();
   
 private:
   int lastConnectionError;

@@ -33,6 +33,11 @@ public:
   // Guarda el byte de configuración
   void commit();
   
+  // Verifica si es primera ejecución (para inicializar valores por defecto)
+  bool isFirstRun();
+  
+  // Marca que ya no es primera ejecución
+  void setInitialized();
 private:
   // Lee una cadena desde la EEPROM
   String readString(int startAddr, int maxLength);

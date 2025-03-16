@@ -151,6 +151,7 @@ void StateMachine::handleConnectingWiFi() {
       Serial.println(wifiManager.getLocalIP());
       Serial.print("Network: ");
       Serial.println(wifiManager.getSSID());
+      wifiManager.handleConnectionSuccess(); // Add this line
       setState(WIFI_CONNECTED);
       break;
       
