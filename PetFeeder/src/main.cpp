@@ -39,24 +39,30 @@ void setup() {
   stateMachine.setState(WELCOME_SCREEN);
 }
 
-// Modificar la función loop()
 void loop() {
-  // Actualizar la máquina de estados
+  // Update state machine
   stateMachine.update();
   
-  // Procesar solicitudes web cuando sea necesario
-  if (stateMachine.getState() == AP_MODE_ACTIVE || 
-      stateMachine.getState() == WIFI_CONNECTED) {
-    webServer.handleClient();
-  }
-  
-  // Verificar si hay alimentación programada
+  // Handle web requests more aggressively
   if (stateMachine.getState() == WIFI_CONNECTED) {
+    for (int i = 0; i < 5; i++) {
+      webServer.handleClient();
+      yield(); // Allow WiFi stack to process
+    }
+    
+    // Check feeding schedule
     feedingSchedule.checkSchedule();
+  } 
+  else if (stateMachine.getState() == AP_MODE_ACTIVE) {
+    for (int i = 0; i < 3; i++) {
+      webServer.handleClient();
+      yield();
+    }
   }
   
-  // Actualizar el servo si está activo
+  // Update servo if active
   servoController.update();
   
-  delay(10);
+  // Use yield instead of delay when possible
+  yield();
 }
