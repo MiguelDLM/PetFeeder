@@ -1,54 +1,40 @@
-#define SELECT_KEY   1
-#define LEFT_KEY     2
-#define DOWN_KEY     3
-#define UP_KEY       4
-#define RIGHT_KEY    5
+#include <Arduino.h>
+#include "../include/config.h"
+#include "../include/wifi_manager.h"
+#include "../include/web_server.h"
+#include "../include/lcd_ui.h"
+#include "../include/state_machine.h"
+#include "../include/storage.h"
 
-#include <LiquidCrystal.h>
-const int rs = D1, en = D2, d4 = D4, d5 = D5, d6 = D6, d7 = D7;
-LiquidCrystal lcd(rs, en, d4, d5, d6, d7); // select the pins used on the LCD panel
-
-int menuPos = 0;
-
-String menuLines[6] = {
-  "Settings",
-  "Reset",
-  "Main Site",
-  "Server IP",
-  "Get Data",
-  "Return"
+// Definición del array de menú
+const char* MENU_ITEMS[MENU_ITEMS_COUNT] = {
+  "WiFi Status",
+  "Reset WiFi",
+  "Feeding Schedule",
+  "Manual Feed",
+  "Settings"
 };
 
-int getKeyID() {
-  int aRead = analogRead(A0);
-
-  if(aRead > 500) return 0;                // no key is pressed
-  if(aRead > 420) return SELECT_KEY;       // select key
-  if(aRead > 350) return LEFT_KEY;         // left key
-  if(aRead > 300) return DOWN_KEY;         // down key
-  if(aRead > 150) return UP_KEY;           // up key
-  if(aRead < 30)  return RIGHT_KEY;        // right key
-
-  return 0;
-}
-
 void setup() {
-  lcd.begin(16, 2);
-  lcd.clear();
+  Serial.begin(115200);
+  Serial.println("\nPet Feeder Initializing...");
+  
+  // Inicializar componentes
+  storage.begin();
+  lcdUI.begin();
+  
+  // Establecer estado inicial
+  stateMachine.setState(WELCOME_SCREEN);
 }
 
 void loop() {
-  lcd.clear();
-  lcd.print(">");
-  lcd.print(menuLines[menuPos]);
-  lcd.setCursor(0, 1);
-  lcd.print(menuLines[menuPos + 1]);
-
-  if (getKeyID() == UP_KEY) menuPos--;
-  if (getKeyID() == DOWN_KEY) menuPos++;
-
-  if (menuPos < 0) menuPos = 0;
-  if (menuPos > 5) menuPos = 5;
-
-  delay(100);
+  // Actualizar la máquina de estados
+  stateMachine.update();
+  
+  // Procesar solicitudes web cuando sea necesario
+  if (stateMachine.getState() == AP_MODE_ACTIVE) {
+    webServer.handleClient();
+  }
+  
+  delay(10);
 }
