@@ -1,0 +1,168 @@
+esphome:
+  name: pet-feeder
+  friendly_name: Pet Feeder
+
+
+# Cambiar a ESP8266
+esp8266:
+  board: nodemcuv2  # Cambiar según tu modelo (nodemcuv2, d1_mini, etc.)
+  restore_from_flash: true
+
+# Enable logging with reduced level
+logger:
+  level: INFO  # Reduced from DEBUG
+  baud_rate: 115200
+  logs:
+    sensor: INFO
+    i2c: WARN
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  power_save_mode: high
+  fast_connect: true
+  reboot_timeout: 15min
+  
+  # Enable fallback hotspot in case wifi connection fails
+  ap:
+    ssid: "Pet-Feeder Fallback Hotspot"
+    password: "password123"
+
+captive_portal:
+
+# Componente Servo para ESP8266 - Ajustando los niveles para mejor movimiento
+servo:
+  - id: feeder_servo
+    output: servo_output
+    min_level: 0.0
+    max_level: 1.0
+
+
+# PWM para ESP8266 con mejor configuración de pines
+output:
+  - platform: esp8266_pwm
+    id: servo_output
+    pin: GPIO12  
+    frequency: 50 Hz
+    min_power: 3%
+    max_power: 10%  
+            
+# Botón para alimentar automáticamente
+button:
+  - platform: template
+    name: "Feed Now"
+    icon: "mdi:food-drumstick"
+    on_press:
+      - logger.log: "Dispensing food"
+      - servo.write:
+          id: feeder_servo
+          level: 0.0  # Posición 0° (mínima)
+      - delay: 500ms
+      - servo.write:
+          id: feeder_servo
+          level: 1.0  # Posición 180° (máxima)
+      - delay: 1000ms
+      - servo.write:
+          id: feeder_servo
+          level: 0.5  # Regresa a posición neutral (90°)
+      - lambda: |-
+          id(last_feed_time) = millis();
+          id(status_sensor).publish_state("Food dispensed");
+      - delay: 10s
+      - lambda: |-
+          id(status_sensor).publish_state("Ready");
+
+# Componentes necesarios para la interfaz web
+web_server:
+  port: 80
+  version: 3
+
+# Panel frontal personalizado - readded status_sensor and water_level_status
+text_sensor:
+  - platform: template
+    name: "Pet Feeder Status"
+    id: status_sensor
+    icon: "mdi:bowl"
+    update_interval: 60s
+    lambda: |-
+      return {"Ready"};
+      
+  - platform: template
+    name: "Water Level Status"
+    id: water_level_status
+    update_interval: 10s
+    lambda: |-
+      if (id(water_level).state < 100) {
+        return {"Empty"};
+      } else if (id(water_level).state < 300) {
+        return {"Low"};
+      } else {
+        return {"Full"};
+      }
+    icon: "mdi:water"
+  
+# Sensor para medir la última vez que se dispensó comida y datos ambientales
+sensor:
+  - platform: template
+    name: "Time Since Last Feed"
+    id: time_since_last_feed
+    unit_of_measurement: "min"
+    accuracy_decimals: 0
+    update_interval: 60s
+    lambda: |-
+      if (millis() - id(last_feed_time) < 3000) {
+        return 0;
+      }
+      return (millis() - id(last_feed_time)) / 60000.0;
+
+  # Raw water level sensor - using higher accuracy as recommended
+  - platform: adc
+    pin: A0
+    name: "Water Level Raw"
+    id: water_level_raw
+    update_interval: 3s
+    unit_of_measurement: "V"
+    accuracy_decimals: 5
+    on_value:
+      then:
+        - logger.log:
+            format: "Raw water sensor: %.3f V"
+            args: ['id(water_level_raw).state']
+            level: INFO
+            
+              
+  # Water level in ml - using forum-recommended approach with calibrated values for your sensor
+  - platform: template
+    name: "Water Level"
+    id: water_level
+    update_interval: 1s
+    unit_of_measurement: "ml"
+    icon: "mdi:beaker"
+    accuracy_decimals: 0
+    lambda: |-
+      return id(water_level_raw).state;
+    filters:
+      # Calibration based on forum suggestion but adjusted for your readings
+      # Your min reading ~0.013V = empty (0ml)
+      # Your max reading ~0.205V = full (set to typical pet bowl ~500ml)
+      - calibrate_linear:
+          - 0.013 -> 0.0     # Empty reading
+          - 0.185 -> 250.0   # Half reading (adjust volume if known)
+          - 0.210 -> 500.0   # Full reading (adjust volume if known)
+      # Smooth out readings
+      - sliding_window_moving_average:
+          window_size: 3
+          send_every: 1
+    on_value:
+      then:
+        - logger.log:
+            format: "Water level: %.0f ml (raw: %.5fV)"
+            args: ['id(water_level).state', 'id(water_level_raw).state']
+            level: INFO
+
+globals:
+  - id: last_feed_time
+    type: unsigned long
+    restore_value: false
+    initial_value: '0'
+
